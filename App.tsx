@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import InputSection from './components/InputSection';
 import ResultsSection from './components/ResultsSection';
@@ -19,6 +19,33 @@ const App: React.FC = () => {
     setUrl('');
     setAppState(AppState.IDLE);
   }
+
+  const handleAutoDetect = () => {
+    try {
+      // Check if running in a Chrome Extension environment
+      // @ts-ignore
+      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+        // @ts-ignore
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const activeTab = tabs[0];
+          if (activeTab && activeTab.url) {
+            setUrl(activeTab.url);
+          }
+        });
+      } else {
+        // Fallback for development/preview environment
+        console.log('Environment: Not a Chrome Extension. Using mock URL.');
+        setUrl('https://www.google.com/policies/privacy');
+      }
+    } catch (error) {
+      console.error('Error detecting URL:', error);
+    }
+  };
+
+  // Attempt to auto-detect URL when the popup opens
+  useEffect(() => {
+    handleAutoDetect();
+  }, []);
 
   const handleAnalyze = () => {
     if (!url) return;
@@ -47,6 +74,7 @@ const App: React.FC = () => {
             onAnalyze={handleAnalyze}
             isAnalyzing={appState === AppState.ANALYZING}
             onClear={handleClear}
+            onAutoDetect={handleAutoDetect}
           />
 
           {appState === AppState.ANALYZING && (

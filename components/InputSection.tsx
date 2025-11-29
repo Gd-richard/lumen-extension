@@ -6,6 +6,7 @@ interface InputSectionProps {
   onAnalyze: () => void;
   isAnalyzing: boolean;
   onClear: () => void;
+  onAutoDetect: () => void;
 }
 
 const InputSection: React.FC<InputSectionProps> = ({ 
@@ -13,7 +14,8 @@ const InputSection: React.FC<InputSectionProps> = ({
   onUrlChange, 
   onAnalyze,
   isAnalyzing,
-  onClear
+  onClear,
+  onAutoDetect
 }) => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && url && !isAnalyzing) {
@@ -80,9 +82,15 @@ const InputSection: React.FC<InputSectionProps> = ({
       </button>
       
       {!isAnalyzing && !url && (
-        <p className="text-center text-xs text-slate-400 mt-4 animate-fade-in">
-          We can also detect the active tab automatically
-        </p>
+        <button 
+          onClick={onAutoDetect}
+          className="w-full text-center text-xs text-slate-400 mt-4 animate-fade-in hover:text-indigo-600 transition-colors flex items-center justify-center gap-2 group cursor-pointer"
+        >
+          <svg className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          Detect current tab automatically
+        </button>
       )}
     </div>
   );

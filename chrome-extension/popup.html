@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-gradient: linear-gradient(135deg, #4F46E5, #7C3AED);
+      --bg-color: #f8fafc;
+      --surface-color: #ffffff;
+      --text-main: #0f172a;
+      --text-secondary: #64748b;
+      --border-color: #e2e8f0;
+      
+      /* Colors matching React app */
+      --blue-50: #eff6ff;
+      --blue-500: #3b82f6;
+      --amber-50: #fffbeb;
+      --amber-500: #f59e0b;
+      --red-50: #fef2f2;
+      --red-500: #ef4444;
+      --emerald-50: #ecfdf5;
+      --emerald-500: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 400px;
+      height: 600px;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(to bottom right, #e2e8f0, #cbd5e1);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    .app-container {
+      width: 100%;
+      height: 100%;
+      background: var(--surface-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #CBD5E1;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: #94A3B8;
+    }
+
+    /* Header */
+    header {
+      padding: 1.25rem;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-container {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-bg-blur {
+      position: absolute;
+      inset: -4px;
+      background: var(--primary-gradient);
+      border-radius: 50%;
+      opacity: 0.2;
+      filter: blur(4px);
+    }
+
+    .logo {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: var(--primary-gradient);
+      border-radius: 50%;
+      color: white;
+      font-weight: 700;
+      font-size: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header-text h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .header-text p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* Main Content */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      background: rgba(248, 250, 252, 0.3);
+      padding-bottom: 1rem;
+    }
+
+    /* Sections */
+    .view-section {
+      display: none;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+    
+    .view-section.active {
+      display: block;
+    }
+
+    /* Input Section */
+    .input-wrapper {
+      padding: 1.5rem;
+      background: white;
+      position: relative;
+      z-index: 10;
+    }
+
+    .input-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      margin-left: 0.25rem;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      width: 20px;
+      height: 20px;
+    }
+
+    .clear-btn {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+    
+    .clear-btn:hover {
+      color: var(--text-secondary);
+    }
+
+    input[type="url"] {
+      width: 100%;
+      padding: 0.875rem 2.5rem 0.875rem 2.5rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border-color);
+      background: #f9fafb;
+      color: var(--text-main);
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="url"]:focus {
+      background: white;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 0.875rem;
+      border-radius: 0.75rem;
+      border: none;
+      font-weight: 600;
+      font-size: 1rem;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--primary-gradient);
+      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+      opacity: 0.7;
+    }
+
+    .detect-btn {
+      width: 100%;
+      margin-top: 1rem;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: color 0.2s;
+    }
+
+    .detect-btn:hover {
+      color: var(--primary);
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      animation: spin 1s linear infinite;
+      height: 1.25rem;
+      width: 1.25rem;
+    }
+
+    .spinner circle {
+      opacity: 0.25;
+    }
+    
+    .spinner path {
+      opacity: 0.75;
+    }
+
+    /* Skeleton Loader */
+    .skeleton-container {
+      padding: 1.5rem;
+    }
+
+    .skeleton-header {
+      height: 1rem;
+      width: 8rem;
+      background: #e2e8f0;
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem;
+      margin-left: 0.25rem;
+    }
+
+    .skeleton-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+      margin-bottom: 1rem;
+      animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    .skeleton-card-header {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+    }
+
+    .skeleton-icon {
+      width: 2rem;
+      height: 2rem;
+      background: #f1f5f9;
+      border-radius: 0.5rem;
+    }
+
+    .skeleton-title {
+      height: 1rem;
+      width: 6rem;
+      background: #f1f5f9;
+      border-radius: 0.25rem;
+    }
+
+    .skeleton-line {
+      height: 0.75rem;
+      background: #f8fafc;
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .skeleton-line.short { width: 80%; }
+    .skeleton-line.medium { width: 60%; }
+
+    /* Results */
+    .results-container {
+      padding: 1.5rem;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding: 0 0.25rem;
+    }
+
+    .results-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: #059669;
+      background: #ecfdf5;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      border: 1px solid #d1fae5;
+    }
+
+    .result-card {
+      background: white;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(241, 245, 249, 0.8);
+      position: relative;
+      overflow: hidden;
+      animation: slideUpFade 0.5s ease-out forwards;
+      opacity: 0; /* hidden initially for animation */
+    }
+
+    .card-accent {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-icon {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.125rem;
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-main);
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    .card-content {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      padding-left: 0.25rem;
+    }
+
+    /* FAQ */
+    .faq-section {
+      background: white;
+      border-top: 1px solid var(--border-color);
+      margin-top: 0.5rem;
+    }
+
+    .faq-header {
+      background: rgba(248, 250, 252, 0.5);
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+    }
+    
+    .faq-title {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .accordion-item {
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .accordion-btn {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background-color 0.2s;
+    }
+
+    .accordion-btn:hover {
+      background: rgba(248, 250, 252, 0.8);
+    }
+
+    .accordion-title-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .accordion-icon {
+      color: var(--primary);
+      font-weight: 700;
+      opacity: 0.7;
+    }
+
+    .accordion-question {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .accordion-arrow {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      transition: transform 0.3s cubic-bezier(0.87,0,0.13,1);
+    }
+
+    .accordion-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s cubic-bezier(0.87,0,0.13,1);
+    }
+    
+    .accordion-inner {
+      overflow: hidden;
+    }
+
+    .accordion-text {
+      padding: 0 1.5rem 1.25rem 3.5rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .accordion-item.active .accordion-arrow {
+      transform: rotate(180deg);
+      color: var(--primary);
+    }
+
+    .accordion-item.active .accordion-content {
+      grid-template-rows: 1fr;
+    }
+
+    .footer {
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .footer p {
+      font-size: 0.65rem;
+      color: #cbd5e1;
+    }
+
+    /* Animations */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUpFade {
+      from { 
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .delay-100 { animation-delay: 100ms; }
+    .delay-200 { animation-delay: 200ms; }
+    .delay-300 { animation-delay: 300ms; }
+
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div class="logo-container">
+        <div class="logo-bg-blur"></div>
+        <div class="logo">L</div>
+      </div>
+      <div class="header-text">
+        <h1>Lumen AI</h1>
+        <p>Privacy policies, finally clear</p>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="input-wrapper">
+        <label class="input-label" for="policy-url">Privacy Policy URL</label>
+        <div class="input-group">
+          <svg class="input-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <input type="url" id="policy-url" placeholder="https://example.com/privacy">
+          <button id="clear-btn" class="clear-btn" style="display: none;">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <button id="analyze-btn" class="btn-primary" disabled>
+          Analyze Policy
+        </button>
+
+        <button id="detect-btn" class="detect-btn">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          Detect current tab automatically
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-view" class="view-section">
+        <div class="skeleton-container">
+          <div class="skeleton-header"></div>
+          
+          <div class="skeleton-card">
+            <div class="skeleton-card-header">
+              <div class="skeleton-icon"></div>
+              <div class="skeleton-title"></div>
+            </div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line medium"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+          
+          <div class="skeleton-card">
+             <div class="skeleton-card-header">
+              <div class="skeleton-icon"></div>
+              <div class="skeleton-title"></div>
+            </div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line medium"></div>
+          </div>
+          
+           <div class="skeleton-card">
+             <div class="skeleton-card-header">
+              <div class="skeleton-icon"></div>
+              <div class="skeleton-title"></div>
+            </div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results State -->
+      <div id="results-view" class="view-section">
+        <div class="results-container">
+          <div class="results-header">
+            <span class="results-title">Analysis Results</span>
+            <span class="badge">Updated Today</span>
+          </div>
+          
+          <!-- Results injected here -->
+          <div id="cards-container"></div>
+        </div>
+
+        <div class="faq-section">
+          <div class="faq-header">
+            <h4 class="faq-title">Common Questions</h4>
+          </div>
+          <div id="faq-container"></div>
+        </div>
+
+        <div class="footer">
+          <p>Lumen AI v1.0 • Privacy First</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants & Mock Data
+    const MOCK_RESULTS = {
+      dataUsage: "They collect your email, browsing history, IP address, and device location to create a user profile.",
+      permissions: "Requires access to cookies for tracking, local storage, and optional camera access for profile photos.",
+      risks: "Your data is shared with third-party advertising networks. No clear encryption standard mentioned for stored messages.",
+      rights: "You have the right to request a copy of your data and request deletion (GDPR/CCPA compliant)."
+    };
+
+    const MOCK_FAQS = [
+      {
+        question: "Do they sell my data?",
+        answer: "Technically no, but they 'share' it with partners who may use it for targeted advertising, which feels similar."
+      },
+      {
+        question: "Can I delete my data?",
+        answer: "Yes. You can email privacy@example.com to request full account deletion, which takes up to 30 days."
+      },
+      {
+        question: "What's the biggest risk?",
+        answer: "The vague 'partner sharing' clause allows them to transfer your profile to undefined third parties without explicit consent."
+      }
+    ];
+
+    const CARDS_CONFIG = [
+      { id: 'dataUsage', title: 'Data Usage', icon: '📊', accent: 'bg-blue-500', bg: 'bg-blue-50', color: '#3b82f6', delay: '' },
+      { id: 'permissions', title: 'Permissions', icon: '🔑', accent: 'bg-amber-500', bg: 'bg-amber-50', color: '#f59e0b', delay: 'delay-100' },
+      { id: 'risks', title: 'Risks', icon: '⚠️', accent: 'bg-red-500', bg: 'bg-red-50', color: '#ef4444', delay: 'delay-200' },
+      { id: 'rights', title: 'Your Rights', icon: '✅', accent: 'bg-emerald-500', bg: 'bg-emerald-50', color: '#10b981', delay: 'delay-300' }
+    ];
+
+    // DOM Elements
+    const urlInput = document.getElementById('policy-url');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const detectBtn = document.getElementById('detect-btn');
+    const loadingView = document.getElementById('loading-view');
+    const resultsView = document.getElementById('results-view');
+    const cardsContainer = document.getElementById('cards-container');
+    const faqContainer = document.getElementById('faq-container');
+
+    // State
+    let isAnalyzing = false;
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      autoDetectUrl();
+    });
+
+    // Event Listeners
+    urlInput.addEventListener('input', updateInputState);
+    
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && urlInput.value && !isAnalyzing) {
+        handleAnalyze();
+      }
+    });
+
+    analyzeBtn.addEventListener('click', handleAnalyze);
+    
+    clearBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      updateInputState();
+      resetView();
+    });
+    
+    detectBtn.addEventListener('click', autoDetectUrl);
+
+    // Functions
+    function updateInputState() {
+      const hasUrl = urlInput.value.trim().length > 0;
+      analyzeBtn.disabled = !hasUrl || isAnalyzing;
+      clearBtn.style.display = hasUrl && !isAnalyzing ? 'block' : 'none';
+      detectBtn.style.display = hasUrl || isAnalyzing ? 'none' : 'flex';
+    }
+
+    function autoDetectUrl() {
+      if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          const activeTab = tabs[0];
+          if (activeTab && activeTab.url) {
+            urlInput.value = activeTab.url;
+            updateInputState();
+          }
+        });
+      }
+    }
+
+    function handleAnalyze() {
+      if (isAnalyzing) return;
+      
+      isAnalyzing = true;
+      updateInputState();
+      
+      // Update Button State
+      const originalBtnContent = analyzeBtn.innerHTML;
+      analyzeBtn.innerHTML = `
+        <svg class="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Analyzing...
+      `;
+      
+      // Show Loading Skeleton
+      resultsView.classList.remove('active');
+      loadingView.classList.add('active');
+
+      // Simulate API Call
+      setTimeout(() => {
+        isAnalyzing = false;
+        
+        // Reset Button
+        analyzeBtn.innerHTML = 'Analyze Policy';
+        updateInputState();
+        
+        // Render and Show Results
+        renderResults();
+        renderFaq();
+        
+        loadingView.classList.remove('active');
+        resultsView.classList.add('active');
+      }, 2000);
+    }
+
+    function resetView() {
+      loadingView.classList.remove('active');
+      resultsView.classList.remove('active');
+    }
+
+    function renderResults() {
+      cardsContainer.innerHTML = '';
+      
+      CARDS_CONFIG.forEach(config => {
+        const content = MOCK_RESULTS[config.id];
+        const card = document.createElement('div');
+        card.className = `result-card ${config.delay}`;
+        card.innerHTML = `
+          <div class="card-accent" style="background-color: ${config.color}"></div>
+          <div class="card-header">
+            <div class="card-icon ${config.bg}" style="background-color: ${config.color}20; color: ${config.color}">
+              ${config.icon}
+            </div>
+            <h3 class="card-title">${config.title}</h3>
+          </div>
+          <p class="card-content">${content}</p>
+        `;
+        cardsContainer.appendChild(card);
+      });
+    }
+
+    function renderFaq() {
+      faqContainer.innerHTML = '';
+      
+      MOCK_FAQS.forEach((faq, index) => {
+        const item = document.createElement('div');
+        item.className = 'accordion-item';
+        item.innerHTML = `
+          <button class="accordion-btn">
+            <div class="accordion-title-wrapper">
+              <span class="accordion-icon">?</span>
+              <span class="accordion-question">${faq.question}</span>
+            </div>
+            <span class="accordion-arrow">▼</span>
+          </button>
+          <div class="accordion-content">
+            <div class="accordion-inner">
+              <p class="accordion-text">${faq.answer}</p>
+            </div>
+          </div>
+        `;
+        
+        // Add click handler
+        const btn = item.querySelector('.accordion-btn');
+        btn.addEventListener('click', () => {
+          const isOpen = item.classList.contains('active');
+          
+          // Close all others
+          document.querySelectorAll('.accordion-item').forEach(i => {
+            i.classList.remove('active');
+          });
+          
+          // Toggle current
+          if (!isOpen) {
+            item.classList.add('active');
+          }
+        });
+        
+        faqContainer.appendChild(item);
+      });
+    }
+  </script>
+</body>
+</html>
