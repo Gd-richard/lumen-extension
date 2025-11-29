@@ -1,0 +1,105 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import * as cheerio from "cheerio";
+
+export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins for the extension
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { url } = req.body || {};
+
+  if (!url) {
+    return res.status(400).json({ error: 'Missing URL parameter' });
+  }
+
+  try {
+    // Fetch the HTML content
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL: ${response.statusText}`);
+    }
+    const html = await response.text();
+
+    // Extract text content
+    const $ = cheerio.load(html);
+
+    // Remove scripts, styles, and other non-text elements
+    $('script').remove();
+    $('style').remove();
+    $('noscript').remove();
+    $('iframe').remove();
+    $('svg').remove();
+
+    // Get the text
+    const textContent = $('body').text().replace(/\s+/g, ' ').trim();
+
+    // Truncate text if it's too long to avoid token limits (Gemini 1.5 Flash has a large context window, but good to be safe/efficient)
+    // 100k chars is usually plenty for a privacy policy and well within limits
+    const truncatedText = textContent.slice(0, 200000);
+
+    if (!truncatedText) {
+        return res.status(400).json({ error: 'Could not extract text from the provided URL.' });
+    }
+
+    // Initialize Gemini
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        console.error("GEMINI_API_KEY is not set");
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `Analyze this privacy policy and return a JSON response with the following structure:
+   {
+     "dataUsage": "1-2 sentence summary of how they use data",
+     "permissions": "1-2 sentence summary of permissions required",
+     "risks": "1-2 sentence summary of privacy risks",
+     "rights": "1-2 sentence summary of user rights",
+     "faqs": [
+       {"question": "Do they sell my data?", "answer": "short answer"},
+       {"question": "Can I delete my data?", "answer": "short answer"},
+       {"question": "What's the biggest risk?", "answer": "short answer"}
+     ]
+   }
+
+   Keep all answers concise and in plain English. Return ONLY the JSON. Here's the policy text: ${truncatedText}`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    // Parse the JSON response from Gemini
+    // Clean up potential markdown formatting (```json ... ```)
+    const jsonStr = responseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+
+    let analysis;
+    try {
+        analysis = JSON.parse(jsonStr);
+    } catch (e) {
+        console.error("Failed to parse Gemini response:", responseText);
+        return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
+    }
+
+    return res.status(200).json(analysis);
+
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+  }
+}
