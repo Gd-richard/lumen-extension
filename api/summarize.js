@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
@@ -56,33 +55,55 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Could not extract text from the provided URL.' });
     }
 
-    // Initialize Gemini
+    // Initialize Gemini API
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         console.error("GEMINI_API_KEY is not set");
         return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const apiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `Analyze this privacy policy and return a JSON response with the following structure:
-   {
-     "dataUsage": "1-2 sentence summary of how they use data",
-     "permissions": "1-2 sentence summary of permissions required",
-     "risks": "1-2 sentence summary of privacy risks",
-     "rights": "1-2 sentence summary of user rights",
-     "faqs": [
-       {"question": "Do they sell my data?", "answer": "short answer"},
-       {"question": "Can I delete my data?", "answer": "short answer"},
-       {"question": "What's the biggest risk?", "answer": "short answer"}
-     ]
-   }
+    const geminiResponse = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Analyze this privacy policy and return ONLY a JSON response with this structure:
+{
+  "dataUsage": "1-2 sentence summary",
+  "permissions": "1-2 sentence summary",
+  "risks": "1-2 sentence summary",
+  "rights": "1-2 sentence summary",
+  "faqs": [
+    {"question": "Do they sell my data?", "answer": "short answer"},
+    {"question": "Can I delete my data?", "answer": "short answer"},
+    {"question": "What's the biggest risk?", "answer": "short answer"}
+  ]
+}
 
-   Keep all answers concise and in plain English. Return ONLY the JSON. Here's the policy text: ${truncatedText}`;
+Policy text: ${truncatedText}`
+          }]
+        }]
+      })
+    });
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text();
+        throw new Error(`Gemini API Error: ${geminiResponse.status} ${geminiResponse.statusText} - ${errorText}`);
+    }
+
+    const geminiData = await geminiResponse.json();
+
+    // Check if candidates exist and have content
+    if (!geminiData.candidates || geminiData.candidates.length === 0 || !geminiData.candidates[0].content) {
+         throw new Error('No candidates returned from Gemini API');
+    }
+
+    const responseText = geminiData.candidates[0].content.parts[0].text;
 
     // Parse the JSON response from Gemini
     // Clean up potential markdown formatting (```json ... ```)
