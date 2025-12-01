@@ -1,4 +1,10 @@
 import * as cheerio from "cheerio";
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+)
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -24,6 +30,24 @@ export default async function handler(req, res) {
 
   if (!url) {
     return res.status(400).json({ error: 'Missing URL parameter' });
+  }
+
+  // Check cache
+  try {
+    const { data, error } = await supabase
+      .from('summaries')
+      .select('*')
+      .eq('url', url)
+
+    if (data && data.length > 0) {
+      return res.status(200).json({ ...data[0].summary, cached: true })
+    }
+
+    if (error) {
+      console.warn("Supabase cache check error:", error)
+    }
+  } catch (err) {
+    console.warn("Supabase cache check failed:", err)
   }
 
   try {
@@ -117,7 +141,20 @@ Policy text: ${truncatedText}`
         return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
     }
 
-    return res.status(200).json(analysis);
+    // Store in Supabase
+    try {
+      const { error } = await supabase
+        .from('summaries')
+        .insert([{ url, summary: analysis }])
+
+      if (error) {
+        console.warn("Supabase insert error:", error)
+      }
+    } catch (err) {
+      console.warn("Supabase insert failed:", err)
+    }
+
+    return res.status(200).json({ ...analysis, cached: false });
 
   } catch (error) {
     console.error("Error processing request:", error);
