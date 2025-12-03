@@ -43,6 +43,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialization
   autoDetectUrl();
 
+  // Listen for messages from content script
+  if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === "fillUrl" && request.url) {
+        if (urlInput) {
+          urlInput.value = request.url;
+          updateInputState();
+          // Optionally notify user or highlight input
+          urlInput.focus();
+        }
+      }
+    });
+  }
+
   // Event Listeners
   if (urlInput) {
     urlInput.addEventListener('input', updateInputState);
