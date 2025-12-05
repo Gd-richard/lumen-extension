@@ -1,25 +1,6 @@
-// Constants & Mock Data
-const MOCK_RESULTS = {
-  dataUsage: "They collect your email, browsing history, IP address, and device location to create a user profile.",
-  permissions: "Requires access to cookies for tracking, local storage, and optional camera access for profile photos.",
-  risks: "Your data is shared with third-party advertising networks. No clear encryption standard mentioned for stored messages.",
-  rights: "You have the right to request a copy of your data and request deletion (GDPR/CCPA compliant)."
-};
-
-const MOCK_FAQS = [
-  {
-    question: "Do they sell my data?",
-    answer: "Technically no, but they 'share' it with partners who may use it for targeted advertising, which feels similar."
-  },
-  {
-    question: "Can I delete my data?",
-    answer: "Yes. You can email privacy@example.com to request full account deletion, which takes up to 30 days."
-  },
-  {
-    question: "What's the biggest risk?",
-    answer: "The vague 'partner sharing' clause allows them to transfer your profile to undefined third parties without explicit consent."
-  }
-];
+// Constants
+// Use a fixed URL for now, but this should be environmental or built
+const API_URL = 'http://localhost:3000/api/summarize';
 
 const CARDS_CONFIG = [
   { id: 'dataUsage', title: 'Data Usage', icon: '📊', accent: 'bg-blue-500', bg: 'bg-blue-50', color: '#3b82f6', delay: '' },
@@ -34,11 +15,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const analyzeBtn = document.getElementById('analyze-btn');
   const clearBtn = document.getElementById('clear-btn');
   const detectBtn = document.getElementById('detect-btn');
+
   const inputSection = document.getElementById('input-section');
   const loadingView = document.getElementById('loading-view');
   const resultsView = document.getElementById('results-view');
+  const errorView = document.getElementById('error-view');
+
   const cardsContainer = document.getElementById('cards-container');
   const faqContainer = document.getElementById('faq-container');
+
+  // Error UI Elements
+  const errorTitle = document.getElementById('error-title');
+  const errorMessage = document.getElementById('error-message');
+  const manualPasteSection = document.getElementById('manual-paste-section');
+  const policyTextArea = document.getElementById('policy-text');
+  const analyzeTextBtn = document.getElementById('analyze-text-btn');
+  const tryAgainBtn = document.getElementById('try-again-btn');
 
   // Initialization
   autoDetectUrl();
@@ -68,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (analyzeBtn) analyzeBtn.addEventListener('click', handleAnalyze);
+  if (analyzeBtn) analyzeBtn.addEventListener('click', () => handleAnalyze());
   
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
@@ -79,6 +71,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   if (detectBtn) detectBtn.addEventListener('click', autoDetectUrl);
+
+  if (analyzeTextBtn) {
+      analyzeTextBtn.addEventListener('click', () => {
+          const text = policyTextArea.value.trim();
+          if (text) {
+              handleManualPaste(text);
+          }
+      });
+  }
+
+  if (tryAgainBtn) {
+      tryAgainBtn.addEventListener('click', () => {
+          resetView();
+          // If we have a URL, try analyzing it again?
+          // Or just go back to input screen.
+          // Let's go back to input screen so user can correct URL.
+          if (urlInput) urlInput.focus();
+      });
+  }
 
   // Functions
   function updateInputState() {
@@ -93,14 +104,17 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
         if (activeTab && activeTab.url && urlInput) {
-          urlInput.value = activeTab.url;
-          updateInputState();
+          // Only auto-fill if it looks like a web page
+          if (activeTab.url.startsWith('http')) {
+              urlInput.value = activeTab.url;
+              updateInputState();
+          }
         }
       });
     }
   }
 
-  function handleAnalyze() {
+  async function handleAnalyze() {
     if (!urlInput) return;
     const url = urlInput.value.trim();
     
@@ -110,36 +124,118 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    // Hide input section as requested
+    // UI Updates
     if (inputSection) inputSection.style.display = 'none';
-    
-    // Show Loading Skeleton
+    if (errorView) errorView.classList.remove('active');
     if (loadingView) loadingView.classList.add('active');
 
-    // Simulate API Call
-    setTimeout(() => {
-      // Render and Show Results
-      renderResults();
-      renderFaq();
-      
+    try {
+        const data = await callApi({ url });
+
+        // Render and Show Results
+        renderResults(data);
+        renderFaq(data.faqs);
+
+        if (loadingView) loadingView.classList.remove('active');
+        if (resultsView) resultsView.classList.add('active');
+
+    } catch (error) {
+        handleError(error, url);
+    }
+  }
+
+  async function handleManualPaste(text) {
+      // UI Updates
+      if (errorView) errorView.classList.remove('active');
+      if (loadingView) loadingView.classList.add('active');
+      if (inputSection) inputSection.style.display = 'none'; // Ensure input is hidden
+
+      try {
+          const data = await callApi({ text });
+
+          // Render and Show Results
+          renderResults(data);
+          renderFaq(data.faqs);
+
+          if (loadingView) loadingView.classList.remove('active');
+          if (resultsView) resultsView.classList.add('active');
+
+      } catch (error) {
+          // If manual paste fails, show generic error
+          handleError(error, null, true);
+      }
+  }
+
+  async function callApi(body) {
+      const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const error = new Error(errorData.error || `Request failed with status ${response.status}`);
+          error.status = response.status;
+          throw error;
+      }
+
+      return await response.json();
+  }
+
+  function handleError(error, originalUrl, isManualPaste = false) {
       if (loadingView) loadingView.classList.remove('active');
-      if (resultsView) resultsView.classList.add('active');
-    }, 2000);
+      if (resultsView) resultsView.classList.remove('active');
+      if (inputSection) inputSection.style.display = 'none';
+
+      if (errorView) errorView.classList.add('active');
+
+      // Reset UI elements
+      if (manualPasteSection) manualPasteSection.style.display = 'none';
+      if (tryAgainBtn) tryAgainBtn.textContent = "Try Again";
+
+      console.error("Analysis Error:", error);
+
+      // 1. Blocked / Forbidden (403)
+      if (error.status === 403 || error.message.toLowerCase().includes('forbidden') || error.message.toLowerCase().includes('access denied')) {
+          errorTitle.textContent = "Couldn't Access This Policy";
+          errorMessage.textContent = "This site blocks automated access. But you can still analyze it!";
+
+          if (manualPasteSection) manualPasteSection.style.display = 'block';
+          if (tryAgainBtn) tryAgainBtn.textContent = "Try Again with URL";
+
+          // Clear textarea
+          if (policyTextArea) policyTextArea.value = "";
+      }
+      // 2. Network Error
+      else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          errorTitle.textContent = "Connection Error";
+          errorMessage.textContent = "Please check your internet connection and try again.";
+      }
+      // 3. Other Errors
+      else {
+          errorTitle.textContent = "Something Went Wrong";
+          errorMessage.textContent = isManualPaste
+            ? "We couldn't analyze the text. Please ensure it's valid text."
+            : "We couldn't analyze this policy. Please try again later.";
+      }
   }
 
   function resetView() {
-    // Show input section again
     if (inputSection) inputSection.style.display = 'block';
     if (loadingView) loadingView.classList.remove('active');
     if (resultsView) resultsView.classList.remove('active');
+    if (errorView) errorView.classList.remove('active');
   }
 
-  function renderResults() {
+  function renderResults(data) {
     if (!cardsContainer) return;
     cardsContainer.innerHTML = '';
     
     CARDS_CONFIG.forEach(config => {
-      const content = MOCK_RESULTS[config.id];
+      const content = data[config.id] || "No information available.";
       const card = document.createElement('div');
       card.className = `result-card ${config.delay}`;
       card.innerHTML = `
@@ -156,11 +252,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderFaq() {
+  function renderFaq(faqs) {
     if (!faqContainer) return;
     faqContainer.innerHTML = '';
     
-    MOCK_FAQS.forEach((faq, index) => {
+    if (!faqs || !Array.isArray(faqs)) return;
+
+    faqs.forEach((faq) => {
       const item = document.createElement('div');
       item.className = 'accordion-item';
       item.innerHTML = `
