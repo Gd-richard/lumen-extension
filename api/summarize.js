@@ -26,59 +26,81 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { url } = req.body || {};
+  const { url, text } = req.body || {};
 
-  if (!url) {
-    return res.status(400).json({ error: 'Missing URL parameter' });
+  if (!url && !text) {
+    return res.status(400).json({ error: 'Missing URL or text parameter' });
   }
 
-  // Check cache
-  try {
-    const { data, error } = await supabase
-      .from('summaries')
-      .select('*')
-      .eq('url', url)
+  let truncatedText = '';
 
-    if (data && data.length > 0) {
-      return res.status(200).json({ ...data[0].summary, cached: true })
+  // 1. Handle Text Input (Manual Paste)
+  if (text) {
+    truncatedText = text.slice(0, 200000);
+  }
+  // 2. Handle URL Input (Scraping)
+  else {
+    // Check cache first
+    try {
+      const { data, error } = await supabase
+        .from('summaries')
+        .select('*')
+        .eq('url', url)
+
+      if (data && data.length > 0) {
+        return res.status(200).json({ ...data[0].summary, cached: true })
+      }
+
+      if (error) {
+        console.warn("Supabase cache check error:", error)
+      }
+    } catch (err) {
+      console.warn("Supabase cache check failed:", err)
     }
 
-    if (error) {
-      console.warn("Supabase cache check error:", error)
+    try {
+      // Fetch the HTML content
+      const response = await fetch(url);
+
+      // Handle blocked/forbidden specifically
+      if (response.status === 403 || response.status === 401) {
+        return res.status(403).json({ error: 'Access forbidden by target website', status: response.status });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch URL: ${response.statusText}`);
+      }
+      const html = await response.text();
+
+      // Extract text content
+      const $ = cheerio.load(html);
+
+      // Remove scripts, styles, and other non-text elements
+      $('script').remove();
+      $('style').remove();
+      $('noscript').remove();
+      $('iframe').remove();
+      $('svg').remove();
+
+      // Get the text
+      const textContent = $('body').text().replace(/\s+/g, ' ').trim();
+
+      // Truncate text
+      truncatedText = textContent.slice(0, 200000);
+
+      if (!truncatedText) {
+          return res.status(400).json({ error: 'Could not extract text from the provided URL.' });
+      }
+
+    } catch (error) {
+      console.error("Scraping error:", error);
+      // Pass 403 if we caught it? No, handled above.
+      // If network error or other fetch error:
+      return res.status(500).json({ error: error.message || 'Scraping failed' });
     }
-  } catch (err) {
-    console.warn("Supabase cache check failed:", err)
   }
 
   try {
-    // Fetch the HTML content
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch URL: ${response.statusText}`);
-    }
-    const html = await response.text();
-
-    // Extract text content
-    const $ = cheerio.load(html);
-
-    // Remove scripts, styles, and other non-text elements
-    $('script').remove();
-    $('style').remove();
-    $('noscript').remove();
-    $('iframe').remove();
-    $('svg').remove();
-
-    // Get the text
-    const textContent = $('body').text().replace(/\s+/g, ' ').trim();
-
-    // Truncate text if it's too long to avoid token limits (Gemini 1.5 Flash has a large context window, but good to be safe/efficient)
-    // 100k chars is usually plenty for a privacy policy and well within limits
-    const truncatedText = textContent.slice(0, 200000);
-
-    if (!truncatedText) {
-        return res.status(400).json({ error: 'Could not extract text from the provided URL.' });
-    }
-
     // Initialize Gemini API
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -130,7 +152,6 @@ Policy text: ${truncatedText}`
     const responseText = geminiData.candidates[0].content.parts[0].text;
 
     // Parse the JSON response from Gemini
-    // Clean up potential markdown formatting (```json ... ```)
     const jsonStr = responseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
     let analysis;
@@ -141,17 +162,19 @@ Policy text: ${truncatedText}`
         return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
     }
 
-    // Store in Supabase
-    try {
-      const { error } = await supabase
-        .from('summaries')
-        .insert([{ url, summary: analysis }])
+    // Store in Supabase (only if URL is available)
+    if (url) {
+      try {
+        const { error } = await supabase
+          .from('summaries')
+          .insert([{ url, summary: analysis }])
 
-      if (error) {
-        console.warn("Supabase insert error:", error)
+        if (error) {
+          console.warn("Supabase insert error:", error)
+        }
+      } catch (err) {
+        console.warn("Supabase insert failed:", err)
       }
-    } catch (err) {
-      console.warn("Supabase insert failed:", err)
     }
 
     return res.status(200).json({ ...analysis, cached: false });

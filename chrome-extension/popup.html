@@ -617,6 +617,25 @@
         </div>
       </div>
 
+      <!-- Error State -->
+      <div id="error-view" class="view-section">
+        <div class="error-container" style="padding: 1.5rem; text-align: center;">
+            <div id="error-icon" style="font-size: 3rem; margin-bottom: 1rem;">🛡️</div>
+            <h3 id="error-title" style="margin-bottom: 0.5rem; font-weight: 700;">Error Title</h3>
+            <p id="error-message" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;">Error message goes here.</p>
+
+            <div id="manual-paste-section" style="display: none; text-align: left;">
+                <label for="policy-text" class="input-label">Paste Policy Text</label>
+                <textarea id="policy-text" style="width: 100%; height: 150px; padding: 0.75rem; border-radius: 0.75rem; border: 1px solid var(--border-color); font-family: inherit; font-size: 0.875rem; resize: none; margin-bottom: 1rem;" placeholder="Paste the text here..."></textarea>
+                <button id="analyze-text-btn" class="btn-primary">Analyze Pasted Text</button>
+            </div>
+
+            <button id="try-again-btn" class="detect-btn" style="margin-top: 1rem; width: 100%;">
+                Try Again
+            </button>
+        </div>
+      </div>
+
       <!-- Results State -->
       <div id="results-view" class="view-section">
         <div class="results-container">
